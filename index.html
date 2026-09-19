@@ -2,32 +2,64 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Slip-Tis</title>
+
+<!-- ===== PWA ===== -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#214db7">
+<meta name="application-name" content="Slip-Tis">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Slip-Tis">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
 <style>
+  :root {
+    --brand: #214db7;
+    --bg: #ffffff;
+    --card: #ffffff;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #ffffff; /* loader คงพื้นขาวเหมือนเดิม */
+      --card: #1f2937;
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --border: #374151;
+    }
+  }
+
   body, html {
     margin: 0;
     height: 100%;
     width: 100%;
     background: #f0f0f0;
-    font-family: sans-serif;
+    font-family: "Sarabun", "Noto Sans Thai", system-ui, -apple-system, sans-serif;
     overflow: hidden;
   }
+
+  /* ---------- Loader ---------- */
   #loader {
     position: fixed;
-    inset: 0; /* shorthand top:0; left:0; right:0; bottom:0 */
+    inset: 0;
     display: flex;
+    flex-direction: column;
+    gap: 22px;
     align-items: center;
     justify-content: center;
-    background: white;
+    background: var(--bg);
     z-index: 999;
     transition: opacity 1s ease;
     opacity: 1;
   }
-  #loader.fadeout {
-    opacity: 0;
-    pointer-events: none;
-  }
+  #loader.fadeout { opacity: 0; pointer-events: none; }
+  .loader-logo { width: 88px; height: 88px; border-radius: 20px; }
   .bar-loader {
     width: 120px;
     max-width: 60%;
@@ -47,9 +79,11 @@
     animation: barmove 1.5s infinite linear;
   }
   @keyframes barmove {
-    0% { left: -40px;}
-    100% { left: 120px;}
+    0%   { left: -40px; }
+    100% { left: 120px; }
   }
+
+  /* ---------- Iframe ---------- */
   #content-iframe {
     position: fixed;
     inset: 0;
@@ -60,58 +94,297 @@
     transition: opacity 0.8s cubic-bezier(.4,0,.2,1);
     z-index: 1;
   }
-  #content-iframe.visible {
-    opacity: 1;
+  #content-iframe.visible { opacity: 1; }
+
+  /* ---------- Install UI ---------- */
+  .pwa-hidden { display: none !important; }
+
+  #pwa-banner {
+    position: fixed;
+    left: 12px; right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    max-width: 440px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.22);
+    z-index: 1000;
+    animation: pwa-up .35s ease-out;
+  }
+  @keyframes pwa-up {
+    from { transform: translateY(24px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+  #pwa-banner img { width: 46px; height: 46px; border-radius: 11px; flex: none; }
+  #pwa-banner .txt { flex: 1; min-width: 0; line-height: 1.25; }
+  #pwa-banner .txt b { display: block; font-size: 15px; }
+  #pwa-banner .txt span { font-size: 12.5px; color: var(--muted); }
+
+  .pwa-btn {
+    border: 0; cursor: pointer; font: inherit; font-weight: 600;
+    background: var(--brand); color: #fff;
+    padding: 9px 16px; border-radius: 10px; font-size: 14px;
+    white-space: nowrap;
+  }
+  .pwa-btn:active { transform: scale(.97); }
+  .pwa-close {
+    border: 0; background: transparent; color: var(--muted);
+    font-size: 22px; line-height: 1; cursor: pointer; padding: 4px 6px;
+  }
+
+  #pwa-fab {
+    position: fixed;
+    right: 14px;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 16px;
+    border: 0; border-radius: 999px; cursor: pointer;
+    background: var(--brand); color: #fff;
+    font: inherit; font-size: 14px; font-weight: 600;
+    box-shadow: 0 6px 18px rgba(33,77,183,.45);
+    z-index: 1000;
+    animation: pwa-up .35s ease-out;
+  }
+
+  #ios-guide {
+    position: fixed; inset: 0;
+    display: flex; align-items: flex-end; justify-content: center;
+    background: rgba(0,0,0,.5);
+    z-index: 1100;
+  }
+  #ios-guide .sheet {
+    width: 100%; max-width: 460px;
+    background: var(--card); color: var(--text);
+    border-radius: 20px 20px 0 0;
+    padding: 22px 22px calc(22px + env(safe-area-inset-bottom));
+    animation: pwa-up .3s ease-out;
+  }
+  #ios-guide h3 { margin: 0 0 6px; font-size: 18px; }
+  #ios-guide p  { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+  #ios-guide ol { margin: 0 0 16px; padding-left: 20px; font-size: 15px; line-height: 1.9; }
+  #ios-guide .pwa-btn { width: 100%; }
+
+  #offline-toast {
+    position: fixed; top: calc(10px + env(safe-area-inset-top)); left: 50%;
+    transform: translateX(-50%);
+    background: #b91c1c; color: #fff;
+    padding: 8px 16px; border-radius: 999px;
+    font-size: 13px; z-index: 1200;
+    box-shadow: 0 4px 14px rgba(0,0,0,.25);
   }
 </style>
 </head>
 <body>
+
 <div id="loader">
+  <img class="loader-logo" src="icons/icon-192.png" alt="Slip-Tis">
   <div class="bar-loader">
     <div class="bar-inner"></div>
   </div>
 </div>
+
 <iframe id="content-iframe"
+        title="Slip-Tis"
         src="https://script.google.com/macros/s/AKfycbz1EcGgJgTpzyvTUhi0T1ZQpAWFjlpTXegFnaaoMNd9N_1rBz5idmIk7S12WizdHNeV/exec">
 </iframe>
+
+<!-- ===== Install banner / FAB / iOS guide ===== -->
+<div id="pwa-banner" class="pwa-hidden" role="dialog" aria-label="ติดตั้งแอป">
+  <img src="icons/icon-192.png" alt="">
+  <div class="txt">
+    <b>ติดตั้งแอป Slip-Tis</b>
+    <span>เปิดใช้งานได้เร็วขึ้น เหมือนแอปจริงบนเครื่อง</span>
+  </div>
+  <button type="button" class="pwa-btn" id="pwa-install-btn">ติดตั้ง</button>
+  <button type="button" class="pwa-close" id="pwa-dismiss-btn" aria-label="ปิด">&times;</button>
+</div>
+
+<button type="button" id="pwa-fab" class="pwa-hidden" aria-label="ติดตั้งแอป">📲 ติดตั้งแอป</button>
+
+<div id="ios-guide" class="pwa-hidden" role="dialog" aria-modal="true" aria-label="วิธีติดตั้งบน iPhone / iPad">
+  <div class="sheet">
+    <h3>ติดตั้ง Slip-Tis บน iPhone / iPad</h3>
+    <p>ทำตามขั้นตอนต่อไปนี้ในเบราว์เซอร์ Safari</p>
+    <ol>
+      <li>แตะปุ่ม <b>แชร์</b> (ไอคอนสี่เหลี่ยมมีลูกศรชี้ขึ้น)</li>
+      <li>เลื่อนลงแล้วเลือก <b>เพิ่มไปยังหน้าจอโฮม</b></li>
+      <li>แตะ <b>เพิ่ม</b> ที่มุมขวาบน</li>
+    </ol>
+    <button type="button" class="pwa-btn" id="ios-close-btn">เข้าใจแล้ว</button>
+  </div>
+</div>
+
 <script>
+// ==============================
+// 🖼️ Loader → Iframe (เหมือนเดิม)
+// ==============================
 const loader = document.getElementById('loader');
-  const iframe = document.getElementById('content-iframe');
+const iframe = document.getElementById('content-iframe');
 
+setTimeout(() => {
+  loader.classList.add('fadeout');
   setTimeout(() => {
-    loader.classList.add('fadeout');
-    setTimeout(() => {
-      loader.style.display = 'none';
-      iframe.classList.add('visible');
-    }, 1000);
-  }, 1500);
+    loader.style.display = 'none';
+    iframe.classList.add('visible');
+    uiReady = true;
+    refreshInstallUI();
+  }, 1000);
+}, 1500);
 
-  // ==============================
-  // 🔒 ป้องกันปุ่มย้อนกลับ (Mobile Back)
-  // ==============================
+// ==============================
+// 📲 PWA: Service Worker
+// ==============================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js', { scope: './' })
+      .catch((err) => console.warn('SW register failed:', err));
+  });
+}
 
-  // push state ครั้งแรก
-  history.pushState(null, null, location.href);
+// ==============================
+// 📲 PWA: ปุ่มติดตั้งแอป
+// ==============================
+const DISMISS_KEY = 'slip-tis:pwa-dismissed-at';
+const DISMISS_DAYS = 7;
 
-  window.addEventListener('popstate', function (event) {
-    const confirmExit = confirm('ต้องการออกจากหน้านี้หรือไม่ ?');
+const el = {
+  banner:  document.getElementById('pwa-banner'),
+  fab:     document.getElementById('pwa-fab'),
+  guide:   document.getElementById('ios-guide'),
+  install: document.getElementById('pwa-install-btn'),
+  dismiss: document.getElementById('pwa-dismiss-btn'),
+  iosClose:document.getElementById('ios-close-btn')
+};
 
-    if (confirmExit) {
-      // อนุญาตให้ย้อนกลับจริง
-      history.back();
-    } else {
-      // กันไม่ให้ย้อนกลับ
-      history.pushState(null, null, location.href);
+const store = {
+  get(k)    { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch { /* ignore */ } }
+};
+
+let deferredPrompt = null;
+let uiReady = false;      // true เมื่อ loader หายแล้ว
+let installed = false;
+
+const isStandalone = () =>
+  window.matchMedia('(display-mode: standalone)').matches ||
+  window.matchMedia('(display-mode: fullscreen)').matches ||
+  window.navigator.standalone === true;
+
+const isIOS = () =>
+  /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+const bannerDismissedRecently = () => {
+  const t = Number(store.get(DISMISS_KEY));
+  return t && (Date.now() - t) < DISMISS_DAYS * 86400000;
+};
+
+const show = (node, on) => node.classList.toggle('pwa-hidden', !on);
+
+function refreshInstallUI() {
+  const canInstall = !installed && !isStandalone() && (!!deferredPrompt || isIOS());
+  if (!canInstall || !uiReady) {
+    show(el.banner, false);
+    show(el.fab, false);
+    return;
+  }
+  const bannerVisible = !bannerDismissedRecently();
+  show(el.banner, bannerVisible);
+  show(el.fab, !bannerVisible);
+}
+
+async function installApp() {
+  if (deferredPrompt) {
+    const promptEvent = deferredPrompt;
+    deferredPrompt = null;               // ใช้ได้ครั้งเดียว
+    try {
+      promptEvent.prompt();
+      const { outcome } = await promptEvent.userChoice;
+      if (outcome === 'dismissed') store.set(DISMISS_KEY, String(Date.now()));
+    } catch (err) {
+      console.warn('Install prompt error:', err);
     }
-  });
+    refreshInstallUI();
+  } else if (isIOS()) {
+    show(el.guide, true);
+  }
+}
 
-  // ==============================
-  // 🔒 กัน reload / ปิด tab (เสริม)
-  // ==============================
-  window.addEventListener('beforeunload', function (e) {
-    e.preventDefault();
-    e.returnValue = '';
-  });
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();                    // เก็บไว้เรียกตอนผู้ใช้กดปุ่มเอง
+  deferredPrompt = e;
+  refreshInstallUI();
+});
+
+window.addEventListener('appinstalled', () => {
+  installed = true;
+  deferredPrompt = null;
+  refreshInstallUI();
+});
+
+window.matchMedia('(display-mode: standalone)')
+  .addEventListener?.('change', refreshInstallUI);
+
+el.install.addEventListener('click', installApp);
+el.fab.addEventListener('click', installApp);
+el.dismiss.addEventListener('click', () => {
+  store.set(DISMISS_KEY, String(Date.now()));
+  refreshInstallUI();
+});
+el.iosClose.addEventListener('click', () => show(el.guide, false));
+el.guide.addEventListener('click', (e) => { if (e.target === el.guide) show(el.guide, false); });
+
+// ==============================
+// 📶 แจ้งเตือนเมื่อออฟไลน์
+// ==============================
+let offlineToast = null;
+function updateOnlineStatus() {
+  if (!navigator.onLine && !offlineToast) {
+    offlineToast = document.createElement('div');
+    offlineToast.id = 'offline-toast';
+    offlineToast.textContent = 'ไม่มีการเชื่อมต่ออินเทอร์เน็ต';
+    document.body.appendChild(offlineToast);
+  } else if (navigator.onLine && offlineToast) {
+    offlineToast.remove();
+    offlineToast = null;
+  }
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+
+// ==============================
+// 🔒 ป้องกันปุ่มย้อนกลับ (Mobile Back)
+// ==============================
+
+// push state ครั้งแรก
+history.pushState(null, null, location.href);
+
+window.addEventListener('popstate', function (event) {
+  const confirmExit = confirm('ต้องการออกจากหน้านี้หรือไม่ ?');
+
+  if (confirmExit) {
+    // อนุญาตให้ย้อนกลับจริง
+    history.back();
+  } else {
+    // กันไม่ให้ย้อนกลับ
+    history.pushState(null, null, location.href);
+  }
+});
+
+// ==============================
+// 🔒 กัน reload / ปิด tab (เสริม)
+// ==============================
+window.addEventListener('beforeunload', function (e) {
+  e.preventDefault();
+  e.returnValue = '';
+});
 </script>
 </body>
 </html>
