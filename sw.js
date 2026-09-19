@@ -1,0 +1,76 @@
+/* Slip-Tis Service Worker
+ * - แคชเฉพาะ "App Shell" (index, manifest, icons) ที่อยู่บน github.io
+ * - ไม่แตะต้อง request ข้ามโดเมน (script.google.com) เพื่อไม่ให้ข้อมูลเงินเดือนถูกแคชค้าง
+ * - เปลี่ยนเลข CACHE_VERSION ทุกครั้งที่แก้ไฟล์ใน SHELL เพื่อให้เครื่องผู้ใช้อัปเดต
+ */
+const CACHE_VERSION = 'v1';
+const CACHE_NAME = `slip-tis-${CACHE_VERSION}`;
+const SHELL = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-maskable-512.png',
+  './icons/apple-touch-icon.png',
+  './icons/favicon-48.png'
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll(SHELL))
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(
+        keys.filter((k) => k.startsWith('slip-tis-') && k !== CACHE_NAME)
+            .map((k) => caches.delete(k))
+      ))
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return; // ปล่อย Apps Script / Google ผ่านตามปกติ
+
+  // หน้าเว็บ: network-first → ถ้าออฟไลน์ใช้ index.html ที่แคชไว้
+  if (req.mode === 'navigate') {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE_NAME).then((c) => c.put('./index.html', copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match('./index.html', { ignoreSearch: true }))
+    );
+    return;
+  }
+
+  // ไฟล์ static: stale-while-revalidate
+  event.respondWith(
+    caches.match(req, { ignoreSearch: true }).then((cached) => {
+      const network = fetch(req)
+        .then((res) => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE_NAME).then((c) => c.put(req, copy));
+          }
+          return res;
+        })
+        .catch(() => cached);
+      return cached || network;
+    })
+  );
+});
