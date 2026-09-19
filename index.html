@@ -13,8 +13,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Slip-Tis">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 
 <style>
   :root {
@@ -152,23 +152,23 @@
     animation: pwa-up .35s ease-out;
   }
 
-  #ios-guide {
+  #install-guide {
     position: fixed; inset: 0;
     display: flex; align-items: flex-end; justify-content: center;
     background: rgba(0,0,0,.5);
     z-index: 1100;
   }
-  #ios-guide .sheet {
+  #install-guide .sheet {
     width: 100%; max-width: 460px;
     background: var(--card); color: var(--text);
     border-radius: 20px 20px 0 0;
     padding: 22px 22px calc(22px + env(safe-area-inset-bottom));
     animation: pwa-up .3s ease-out;
   }
-  #ios-guide h3 { margin: 0 0 6px; font-size: 18px; }
-  #ios-guide p  { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
-  #ios-guide ol { margin: 0 0 16px; padding-left: 20px; font-size: 15px; line-height: 1.9; }
-  #ios-guide .pwa-btn { width: 100%; }
+  #install-guide h3 { margin: 0 0 6px; font-size: 18px; }
+  #install-guide p  { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+  #install-guide ol { margin: 0 0 16px; padding-left: 20px; font-size: 15px; line-height: 1.9; }
+  #install-guide .pwa-btn { width: 100%; }
 
   #offline-toast {
     position: fixed; top: calc(10px + env(safe-area-inset-top)); left: 50%;
@@ -183,7 +183,7 @@
 <body>
 
 <div id="loader">
-  <img class="loader-logo" src="icons/icon-192.png" alt="Slip-Tis">
+  <img class="loader-logo" src="icon-192.png" alt="Slip-Tis">
   <div class="bar-loader">
     <div class="bar-inner"></div>
   </div>
@@ -194,9 +194,9 @@
         src="https://script.google.com/macros/s/AKfycbz1EcGgJgTpzyvTUhi0T1ZQpAWFjlpTXegFnaaoMNd9N_1rBz5idmIk7S12WizdHNeV/exec">
 </iframe>
 
-<!-- ===== Install banner / FAB / iOS guide ===== -->
+<!-- ===== Install banner / FAB / Guide ===== -->
 <div id="pwa-banner" class="pwa-hidden" role="dialog" aria-label="ติดตั้งแอป">
-  <img src="/icon-192.png" alt="">
+  <img src="icon-192.png" alt="">
   <div class="txt">
     <b>ติดตั้งแอป Slip-Tis</b>
     <span>เปิดใช้งานได้เร็วขึ้น เหมือนแอปจริงบนเครื่อง</span>
@@ -207,16 +207,12 @@
 
 <button type="button" id="pwa-fab" class="pwa-hidden" aria-label="ติดตั้งแอป">📲 ติดตั้งแอป</button>
 
-<div id="ios-guide" class="pwa-hidden" role="dialog" aria-modal="true" aria-label="วิธีติดตั้งบน iPhone / iPad">
+<div id="install-guide" class="pwa-hidden" role="dialog" aria-modal="true" aria-labelledby="guide-title">
   <div class="sheet">
-    <h3>ติดตั้ง Slip-Tis บน iPhone / iPad</h3>
-    <p>ทำตามขั้นตอนต่อไปนี้ในเบราว์เซอร์ Safari</p>
-    <ol>
-      <li>แตะปุ่ม <b>แชร์</b> (ไอคอนสี่เหลี่ยมมีลูกศรชี้ขึ้น)</li>
-      <li>เลื่อนลงแล้วเลือก <b>เพิ่มไปยังหน้าจอโฮม</b></li>
-      <li>แตะ <b>เพิ่ม</b> ที่มุมขวาบน</li>
-    </ol>
-    <button type="button" class="pwa-btn" id="ios-close-btn">เข้าใจแล้ว</button>
+    <h3 id="guide-title"></h3>
+    <p id="guide-sub"></p>
+    <ol id="guide-steps"></ol>
+    <button type="button" class="pwa-btn" id="guide-close-btn">เข้าใจแล้ว</button>
   </div>
 </div>
 
@@ -254,12 +250,15 @@ const DISMISS_KEY = 'slip-tis:pwa-dismissed-at';
 const DISMISS_DAYS = 7;
 
 const el = {
-  banner:  document.getElementById('pwa-banner'),
-  fab:     document.getElementById('pwa-fab'),
-  guide:   document.getElementById('ios-guide'),
-  install: document.getElementById('pwa-install-btn'),
-  dismiss: document.getElementById('pwa-dismiss-btn'),
-  iosClose:document.getElementById('ios-close-btn')
+  banner:   document.getElementById('pwa-banner'),
+  fab:      document.getElementById('pwa-fab'),
+  guide:    document.getElementById('install-guide'),
+  gTitle:   document.getElementById('guide-title'),
+  gSub:     document.getElementById('guide-sub'),
+  gSteps:   document.getElementById('guide-steps'),
+  gClose:   document.getElementById('guide-close-btn'),
+  install:  document.getElementById('pwa-install-btn'),
+  dismiss:  document.getElementById('pwa-dismiss-btn')
 };
 
 const store = {
@@ -271,14 +270,21 @@ let deferredPrompt = null;
 let uiReady = false;      // true เมื่อ loader หายแล้ว
 let installed = false;
 
+const UA = navigator.userAgent;
+
 const isStandalone = () =>
   window.matchMedia('(display-mode: standalone)').matches ||
   window.matchMedia('(display-mode: fullscreen)').matches ||
   window.navigator.standalone === true;
 
 const isIOS = () =>
-  /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+  /iphone|ipad|ipod/i.test(UA) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+// เบราว์เซอร์ในแอป (LINE / Facebook / Instagram / WebView) ติดตั้ง PWA ไม่ได้
+const isInAppBrowser = () => /Line\/|FBAN|FBAV|Instagram|MicroMessenger|; wv\)/i.test(UA);
+
+const isAndroid = () => /android/i.test(UA);
 
 const bannerDismissedRecently = () => {
   const t = Number(store.get(DISMISS_KEY));
@@ -287,9 +293,10 @@ const bannerDismissedRecently = () => {
 
 const show = (node, on) => node.classList.toggle('pwa-hidden', !on);
 
+// แสดงแบนเนอร์เสมอ (ยกเว้นติดตั้งแล้ว / เปิดในโหมดแอปอยู่)
 function refreshInstallUI() {
-  const canInstall = !installed && !isStandalone() && (!!deferredPrompt || isIOS());
-  if (!canInstall || !uiReady) {
+  const visible = uiReady && !installed && !isStandalone();
+  if (!visible) {
     show(el.banner, false);
     show(el.fab, false);
     return;
@@ -297,6 +304,60 @@ function refreshInstallUI() {
   const bannerVisible = !bannerDismissedRecently();
   show(el.banner, bannerVisible);
   show(el.fab, !bannerVisible);
+}
+
+// คู่มือติดตั้งตามแพลตฟอร์ม (ใช้เมื่อเบราว์เซอร์ไม่ส่ง install prompt มาให้)
+function getGuide() {
+  if (isInAppBrowser()) {
+    return {
+      title: 'เปิดด้วยเบราว์เซอร์ก่อนติดตั้ง',
+      sub: 'เบราว์เซอร์ในแอป (เช่น LINE) ไม่รองรับการติดตั้ง',
+      steps: [
+        'แตะเมนู <b>⋮</b> หรือปุ่ม <b>แชร์</b> ที่มุมหน้าจอ',
+        'เลือก <b>เปิดในเบราว์เซอร์</b> (Chrome / Safari)',
+        'กดปุ่ม <b>ติดตั้ง</b> อีกครั้งในเบราว์เซอร์'
+      ]
+    };
+  }
+  if (isIOS()) {
+    return {
+      title: 'ติดตั้ง Slip-Tis บน iPhone / iPad',
+      sub: 'ทำตามขั้นตอนต่อไปนี้ในเบราว์เซอร์ Safari',
+      steps: [
+        'แตะปุ่ม <b>แชร์</b> (ไอคอนสี่เหลี่ยมมีลูกศรชี้ขึ้น)',
+        'เลื่อนลงแล้วเลือก <b>เพิ่มไปยังหน้าจอโฮม</b>',
+        'แตะ <b>เพิ่ม</b> ที่มุมขวาบน'
+      ]
+    };
+  }
+  if (isAndroid()) {
+    return {
+      title: 'ติดตั้ง Slip-Tis บน Android',
+      sub: 'ทำตามขั้นตอนต่อไปนี้ในเบราว์เซอร์ Chrome',
+      steps: [
+        'แตะเมนู <b>⋮</b> ที่มุมขวาบน',
+        'เลือก <b>ติดตั้งแอป</b> หรือ <b>เพิ่มลงในหน้าจอหลัก</b>',
+        'กด <b>ติดตั้ง</b> เพื่อยืนยัน'
+      ]
+    };
+  }
+  return {
+    title: 'ติดตั้ง Slip-Tis บนคอมพิวเตอร์',
+    sub: 'รองรับ Chrome และ Edge',
+    steps: [
+      'มองหาไอคอน <b>ติดตั้ง</b> ทางขวาสุดของช่องที่อยู่เว็บ',
+      'หรือเปิดเมนู <b>⋮</b> แล้วเลือก <b>ติดตั้ง Slip-Tis</b>',
+      'กด <b>ติดตั้ง</b> เพื่อยืนยัน'
+    ]
+  };
+}
+
+function openGuide() {
+  const g = getGuide();
+  el.gTitle.textContent = g.title;
+  el.gSub.textContent = g.sub;
+  el.gSteps.innerHTML = g.steps.map((s) => `<li>${s}</li>`).join(''); // ข้อความคงที่ในโค้ด ไม่รับค่าจากผู้ใช้
+  show(el.guide, true);
 }
 
 async function installApp() {
@@ -311,8 +372,8 @@ async function installApp() {
       console.warn('Install prompt error:', err);
     }
     refreshInstallUI();
-  } else if (isIOS()) {
-    show(el.guide, true);
+  } else {
+    openGuide();                          // ไม่มี prompt → แสดงวิธีติดตั้งด้วยตัวเอง
   }
 }
 
@@ -337,7 +398,7 @@ el.dismiss.addEventListener('click', () => {
   store.set(DISMISS_KEY, String(Date.now()));
   refreshInstallUI();
 });
-el.iosClose.addEventListener('click', () => show(el.guide, false));
+el.gClose.addEventListener('click', () => show(el.guide, false));
 el.guide.addEventListener('click', (e) => { if (e.target === el.guide) show(el.guide, false); });
 
 // ==============================
