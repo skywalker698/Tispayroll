@@ -3,7 +3,7 @@
  * - ไม่แตะต้อง request ข้ามโดเมน (script.google.com) เพื่อไม่ให้ข้อมูลเงินเดือนถูกแคชค้าง
  * - เปลี่ยนเลข CACHE_VERSION ทุกครั้งที่แก้ไฟล์ใน SHELL เพื่อให้เครื่องผู้ใช้อัปเดต
  */
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = `slip-tis-${CACHE_VERSION}`;
 const SHELL = [
   './',
@@ -19,7 +19,10 @@ const SHELL = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(SHELL))
+      // แคชทีละไฟล์: ถ้าไฟล์ใดหายไป (404) จะไม่ทำให้การติดตั้ง SW ล้มเหลวทั้งหมด
+      .then((cache) => Promise.all(
+        SHELL.map((path) => cache.add(path).catch((err) => console.warn('SW cache skip:', path, err)))
+      ))
       .then(() => self.skipWaiting())
   );
 });
